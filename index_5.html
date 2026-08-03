@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1a73e8" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="현금장부" />
+  <title>💰 현금장부</title>
+  <link rel="manifest" href="manifest.json" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue:#1a73e8; --blue-l:#e8f0fe; --blue-d:#1557b0;
+      --green:#188038; --green-l:#e6f4ea;
+      --red:#c5221f; --red-l:#fce8e6;
+      --orange:#e37400; --orange-l:#fef3e2;
+      --purple:#6200ea; --purple-l:#ede7f6;
+      --bg:#f8f9fa; --surface:#fff; --surface2:#f1f3f4;
+      --border:#dadce0; --text:#202124; --text2:#5f6368; --text3:#9aa0a6;
+      --radius:12px; --shadow:0 1px 3px rgba(0,0,0,0.12);
+    }
+    html,body{height:100%;font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
+
+    /* 탭 네비게이션 */
+    .tab-nav{display:flex;background:var(--surface);border-bottom:1px solid var(--border);height:52px;flex-shrink:0;}
+    .tab-btn{flex:1;border:none;background:transparent;font-size:14px;font-weight:500;color:var(--text2);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-bottom:3px solid transparent;transition:all 0.15s;}
+    .tab-btn.on{color:var(--blue);border-bottom-color:var(--blue);font-weight:700;}
+    .tab-btn span{font-size:18px;}
+    .tab-page{display:none;flex:1;overflow:hidden;}
+    .tab-page.on{display:flex;}
+    .root{display:flex;flex-direction:column;height:100vh;}
+
+    /* 공통 패널 */
+    .two-col{display:grid;grid-template-columns:310px 1fr;flex:1;overflow:hidden;}
+    .left{background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+    .panel-title{padding:16px 16px 12px;font-size:17px;font-weight:700;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+    .right{display:flex;flex-direction:column;overflow:hidden;}
+    .topbar{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;}
+    .scroll-area{flex:1;overflow-y:auto;padding:14px;}
+    .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;align-content:start;}
+
+    /* 로고 */
+    .logo{padding:16px 20px 12px;text-align:center;border-bottom:1px solid var(--border);}
+    .logo h1{font-size:22px;font-weight:700;}
+    .logo p{font-size:12px;color:var(--text2);margin-top:3px;}
+    .sync-status{font-size:11px;padding:2px 8px;border-radius:10px;margin-top:5px;display:inline-block;}
+    .sync-status.ok{background:var(--green-l);color:var(--green);}
+    .sync-status.loading{background:var(--blue-l);color:var(--blue);}
+    .sync-status.err{background:var(--red-l);color:var(--red);}
+
+    /* 요약 카드 */
+    .sum-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;}
+    .sum-card{border-radius:10px;padding:10px 8px;text-align:center;}
+    .sum-card.red{background:var(--red-l);} .sum-card.green{background:var(--green-l);} .sum-card.gray{background:var(--surface2);} .sum-card.blue{background:var(--blue-l);} .sum-card.purple{background:var(--purple-l);}
+    .sum-label{font-size:11px;color:var(--text2);margin-bottom:3px;}
+    .sum-card.red .sum-label{color:var(--red);} .sum-card.green .sum-label{color:var(--green);} .sum-card.blue .sum-label{color:var(--blue);} .sum-card.purple .sum-label{color:var(--purple);}
+    .sum-value{font-size:17px;font-weight:700;}
+    .sum-card.red .sum-value{color:var(--red);} .sum-card.green .sum-value{color:var(--green);} .sum-card.blue .sum-value{color:var(--blue);} .sum-card.purple .sum-value{color:var(--purple);}
+
+    /* 폼 */
+    .form-area{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px;}
+    .form-group{display:flex;flex-direction:column;gap:4px;}
+    .form-group label{font-size:13px;color:var(--text2);}
+    .form-group label .req{color:var(--red);margin-left:2px;}
+    .ac-wrap{position:relative;}
+    input,select{height:46px;font-size:15px;border:1.5px solid var(--border);border-radius:10px;padding:0 12px;background:var(--surface);color:var(--text);width:100%;outline:none;-webkit-appearance:none;}
+    select{cursor:pointer;}
+    input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(26,115,232,0.15);}
+    .ac-list{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1.5px solid var(--blue);border-radius:10px;z-index:100;max-height:180px;overflow-y:auto;box-shadow:var(--shadow);display:none;}
+    .ac-item{padding:10px 14px;font-size:15px;cursor:pointer;color:var(--text);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+    .ac-item:last-child{border-bottom:none;}
+    .ac-item:hover,.ac-item.hi{background:var(--blue-l);color:var(--blue);}
+    .ac-sub{font-size:12px;color:var(--text3);}
+    .btn-add{height:50px;font-size:17px;font-weight:600;border-radius:12px;border:none;background:var(--blue);color:#fff;cursor:pointer;box-shadow:var(--shadow);}
+    .btn-add:active{transform:scale(0.98);}
+    .btn-add.green{background:var(--green);}
+    .btn-add.orange{background:var(--orange);}
+
+    /* 카드 공통 */
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+    .card.debt{border-left:5px solid var(--red);} .card.paid{border-left:5px solid var(--green);opacity:0.75;}
+    .card.purchase{border-left:5px solid var(--blue);}
+    .card-head{padding:12px 14px 6px;display:flex;justify-content:space-between;align-items:center;}
+    .card-title{font-size:18px;font-weight:700;color:var(--text);cursor:pointer;}
+    .card-title:hover{color:var(--blue);}
+    .card-sub{font-size:12px;color:var(--text3);padding:0 14px 4px;}
+    .badge{font-size:13px;font-weight:600;padding:4px 10px;border-radius:20px;}
+    .badge.red{background:var(--red-l);color:var(--red);} .badge.green{background:var(--green-l);color:var(--green);}
+    .badge.blue{background:var(--blue-l);color:var(--blue);} .badge.gray{background:var(--surface2);color:var(--text2);}
+    .txn-list{padding:0 14px 6px;max-height:130px;overflow-y:auto;}
+    .txn-row{display:flex;align-items:center;gap:5px;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;}
+    .txn-row:last-child{border-bottom:none;}
+    .txn-date{color:var(--text3);font-size:11px;white-space:nowrap;}
+    .txn-item{color:var(--purple);font-weight:500;white-space:nowrap;}
+    .txn-memo{flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .txn-amt{font-weight:600;white-space:nowrap;font-size:13px;}
+    .txn-amt.plus{color:var(--red);} .txn-amt.minus{color:var(--green);}
+    .card-btns{display:flex;gap:6px;padding:6px 12px 12px;}
+    .btn-pay{flex:1;height:42px;font-size:14px;font-weight:600;border-radius:10px;border:1.5px solid var(--green);background:var(--green-l);color:var(--green);cursor:pointer;}
+    .btn-pay:hover{background:var(--green);color:#fff;}
+    .btn-pay:disabled{opacity:0.4;cursor:default;}
+    .btn-call{height:42px;width:42px;border-radius:10px;border:1.5px solid var(--blue);background:var(--blue-l);color:var(--blue);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;text-decoration:none;}
+    .btn-call:hover{background:var(--blue);color:#fff;}
+    .btn-sms{height:42px;width:42px;border-radius:10px;border:1.5px solid var(--orange);background:var(--orange-l);color:var(--orange);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;}
+    .btn-sms:hover{background:var(--orange);color:#fff;}
+    .btn-del{height:42px;width:42px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;}
+    .btn-del:hover{border-color:var(--red);color:var(--red);background:var(--red-l);}
+    .btn-disabled-ic{height:42px;width:42px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);color:var(--text3);font-size:16px;display:flex;align-items:center;justify-content:center;opacity:0.4;}
+    .empty{text-align:center;padding:50px 20px;color:var(--text3);font-size:16px;line-height:1.8;}
+    .f-btn{height:36px;padding:0 12px;font-size:13px;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;}
+    .f-btn.on{background:var(--blue-l);color:var(--blue);border-color:var(--blue);font-weight:600;}
+
+    /* 매출 탭 */
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;padding:14px;}
+    .stat-card{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);padding:16px;box-shadow:var(--shadow);}
+    .stat-title{font-size:14px;font-weight:700;color:var(--text2);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+    .stat-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:14px;}
+    .stat-row:last-child{border-bottom:none;}
+    .stat-name{color:var(--text);}
+    .stat-val{font-weight:600;color:var(--blue);}
+    .stat-bar-wrap{height:6px;background:var(--surface2);border-radius:3px;margin-top:4px;overflow:hidden;}
+    .stat-bar{height:100%;background:var(--blue);border-radius:3px;transition:width 0.4s;}
+
+    /* 설정 탭 */
+    .settings-wrap{padding:16px;display:flex;flex-direction:column;gap:20px;max-width:700px;margin:0 auto;}
+    .settings-section{background:var(--surface);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow);}
+    .settings-head{padding:14px 16px;font-size:16px;font-weight:700;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+    .settings-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);}
+    .settings-item:last-child{border-bottom:none;}
+    .settings-item-name{flex:1;font-size:15px;color:var(--text);}
+    .btn-sm{height:34px;padding:0 12px;font-size:13px;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;}
+    .btn-sm.red{border-color:var(--red);color:var(--red);}
+    .btn-sm.blue{border-color:var(--blue);color:var(--blue);background:var(--blue-l);}
+    .add-item-row{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border);}
+    .add-item-row input{flex:1;height:38px;font-size:14px;}
+    .btn-add-sm{height:38px;padding:0 14px;font-size:14px;font-weight:600;border-radius:8px;border:none;background:var(--blue);color:#fff;cursor:pointer;}
+
+    /* 매입 배치 카드 */
+    .batch-card{background:var(--surface);border:1px solid var(--border);border-left:5px solid var(--purple);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);}
+    .batch-title{font-size:18px;font-weight:700;color:var(--purple);margin-bottom:4px;}
+    .batch-meta{font-size:13px;color:var(--text2);margin-bottom:10px;}
+    .batch-items{display:flex;flex-direction:column;gap:6px;}
+    .batch-item-row{display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:5px 0;border-bottom:1px solid var(--border);}
+    .batch-item-row:last-child{border-bottom:none;}
+    .batch-item-name{color:var(--purple);font-weight:600;}
+    .batch-item-info{color:var(--text2);}
+    .batch-item-amt{font-weight:700;color:var(--text);}
+
+    /* 모달 */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:300;padding:20px;}
+    .modal{background:var(--surface);border-radius:16px;width:100%;max-width:500px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.2);max-height:90vh;display:flex;flex-direction:column;}
+    .modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0;}
+    .modal-head h2{font-size:19px;font-weight:700;}
+    .btn-x{background:none;border:none;font-size:22px;cursor:pointer;color:var(--text2);padding:4px 8px;border-radius:6px;}
+    .modal-body{padding:16px 20px;overflow-y:auto;flex:1;}
+    .modal-foot{padding:12px 20px 16px;display:flex;gap:10px;border-top:1px solid var(--border);flex-shrink:0;}
+    .btn-sec{flex:1;height:48px;font-size:15px;border-radius:10px;border:1.5px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;}
+    .btn-primary{flex:1;height:48px;font-size:15px;font-weight:600;border-radius:10px;border:none;background:var(--blue);color:#fff;cursor:pointer;}
+    .btn-primary.green-btn{background:var(--green);}
+    .btn-primary.orange-btn{background:var(--orange);}
+    .btn-primary.purple-btn{background:var(--purple);}
+    .pay-desc{font-size:15px;color:var(--text2);margin-bottom:12px;}
+    .pay-input{height:58px;font-size:22px;font-weight:700;text-align:right;margin-bottom:4px;}
+    .pay-hint{font-size:12px;color:var(--text3);text-align:right;}
+    .day-group{margin-bottom:14px;}
+    .day-label{font-size:13px;font-weight:700;padding:5px 0;border-bottom:2px solid var(--border);margin-bottom:5px;display:flex;justify-content:space-between;}
+    .day-total.plus{color:var(--red);} .day-total.minus{color:var(--green);}
+    .day-txn{display:flex;align-items:center;gap:7px;padding:6px 4px;border-bottom:1px solid var(--border);font-size:13px;}
+    .day-txn:last-child{border-bottom:none;}
+    .day-name{font-weight:600;min-width:50px;}
+    .day-memo{flex:1;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .detail-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+    .detail-label{font-size:13px;color:var(--text2);min-width:70px;}
+    .detail-val{font-size:15px;color:var(--text);font-weight:500;}
+    .detail-actions{display:flex;gap:8px;margin-bottom:14px;}
+    .btn-action{flex:1;height:48px;font-size:15px;font-weight:600;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;border:none;}
+    .btn-action.call{background:var(--blue-l);color:var(--blue);border:1.5px solid var(--blue);}
+    .btn-action.sms{background:var(--orange-l);color:var(--orange);border:1.5px solid var(--orange);}
+    .btn-action.disabled-a{background:var(--surface2);color:var(--text3);border:1.5px solid var(--border);cursor:default;opacity:0.5;}
+    .sms-preview{background:var(--surface2);border-radius:10px;padding:12px;font-size:14px;color:var(--text);line-height:1.6;margin-bottom:8px;white-space:pre-wrap;word-break:break-all;}
+    .sms-to{font-size:13px;color:var(--text3);margin-bottom:10px;}
+    .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#323232;color:#fff;padding:12px 22px;border-radius:10px;font-size:14px;z-index:999;opacity:0;transition:opacity 0.3s;pointer-events:none;white-space:nowrap;}
+    .toast.show{opacity:1;}
+    .loading-screen{position:fixed;inset:0;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:16px;}
+    .loading-screen h2{font-size:22px;font-weight:700;}
+    .loading-screen p{font-size:14px;color:var(--text2);}
+    .spinner{width:44px;height:44px;border:4px solid var(--blue-l);border-top-color:var(--blue);border-radius:50%;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .divider{border:none;border-top:1px solid var(--border);margin:10px 0;}
+    .section-label{font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;}
+  </style>
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen">
+  <div class="spinner"></div>
+  <h2>💰 현금장부</h2>
+  <p>데이터 불러오는 중...</p>
+</div>
+
+<div class="root" id="mainApp" style="display:none">
+  <!-- 탭 네비게이션 -->
+  <nav class="tab-nav">
+    <button class="tab-btn on" onclick="switchTab('purchase')"><span>📦</span>매입</button>
+    <button class="tab-btn" onclick="switchTab('customer')"><span>👥</span>고객</button>
+    <button class="tab-btn" onclick="switchTab('sales')"><span>📊</span>매출</button>
+    <button class="tab-btn" onclick="switchTab('settings')"><span>⚙️</span>설정</button>
+  </nav>
+
+  <!-- ══ 매입 탭 ══ -->
+  <div class="tab-page on" id="tab-purchase">
+    <div class="two-col">
+      <div class="left">
+        <div class="logo">
+          <h1>💰 현금장부</h1>
+          <p id="todayLbl"></p>
+          <span class="sync-status loading" id="syncStatus">연결 중...</span>
+        </div>
+        <div class="sum-grid" id="purchaseSumGrid"></div>
+        <div class="form-area">
+          <div class="section-label">📦 매입 입고 등록</div>
+          <div class="form-group">
+            <label>매입처 <span class="req">*</span></label>
+            <div class="ac-wrap">
+              <input id="pSupplier" type="text" placeholder="매입처 입력 또는 선택" autocomplete="off"
+                oninput="onSupplierAc()" onfocus="onSupplierAc()" onblur="hideSupplierAc()" onkeydown="onSupplierKey(event)" />
+              <div class="ac-list" id="supplierAcList"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>입고일 <span class="req">*</span></label>
+            <input id="pDate" type="date" />
+          </div>
+          <div class="form-group">
+            <label>품목 <span class="req">*</span></label>
+            <select id="pItem">
+              <option value="">-- 품목 선택 --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>수량 (박스) <span class="req">*</span></label>
+            <input id="pQty" type="number" placeholder="예: 100" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label>매입 금액 (원) <span class="req">*</span></label>
+            <input id="pAmt" type="number" placeholder="예: 500000" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label>메모 (선택)</label>
+            <input id="pMemo" type="text" placeholder="예: 특품" />
+          </div>
+          <button class="btn-add" style="background:var(--purple)" onclick="addPurchase()">+ 매입 등록</button>
+        </div>
+      </div>
+      <div class="right">
+        <div class="topbar">
+          <span style="font-size:14px;font-weight:600;color:var(--text2)">매입 배치 목록</span>
+          <div style="margin-left:auto;display:flex;gap:6px;">
+            <input type="date" id="pFrom" onchange="renderPurchases()" style="height:36px;font-size:13px;width:128px;" />
+            <span style="color:var(--text3);align-self:center;font-size:13px;">~</span>
+            <input type="date" id="pTo" onchange="renderPurchases()" style="height:36px;font-size:13px;width:128px;" />
+          </div>
+        </div>
+        <div class="scroll-area">
+          <div id="purchaseGrid" class="card-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 고객 탭 ══ -->
+  <div class="tab-page" id="tab-customer">
+    <div class="two-col">
+      <div class="left">
+        <div class="sum-grid" id="custSumGrid" style="padding-top:14px"></div>
+        <div class="form-area">
+          <div class="section-label">📝 외상 기록 추가</div>
+          <div class="form-group">
+            <label>고객명 <span class="req">*</span></label>
+            <div class="ac-wrap">
+              <input id="cName" type="text" placeholder="이름 입력 또는 선택" autocomplete="off"
+                oninput="onCustAc()" onfocus="onCustAc()" onblur="hideCustAc()" onkeydown="onCustKey(event)" />
+              <div class="ac-list" id="custAcList"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>전화번호 (새 고객일 때만)</label>
+            <input id="cPhone" type="tel" placeholder="예: 010-1234-5678" inputmode="tel" />
+          </div>
+          <div class="form-group">
+            <label>매입 배치 <span class="req">*</span></label>
+            <select id="cBatch">
+              <option value="">-- 배치 선택 (매입처+날짜) --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>품목 <span class="req">*</span></label>
+            <select id="cItem">
+              <option value="">-- 품목 선택 --</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>수량 (박스) <span class="req">*</span></label>
+            <input id="cQty" type="number" placeholder="예: 10" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label>납품 금액 (원) <span class="req">*</span></label>
+            <input id="cAmt" type="number" placeholder="예: 150000" inputmode="numeric" />
+          </div>
+          <div class="form-group">
+            <label>메모 (선택)</label>
+            <input id="cMemo" type="text" placeholder="예: 특품" />
+          </div>
+          <button class="btn-add" onclick="addDelivery()">+ 납품 추가</button>
+        </div>
+        <button style="height:42px;font-size:14px;font-weight:500;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);color:var(--text2);cursor:pointer;margin:0 14px 14px;" onclick="showHistory(null)">📅 날짜별 전체 내역</button>
+      </div>
+      <div class="right">
+        <div class="topbar">
+          <div style="display:flex;gap:6px;">
+            <button class="f-btn on" id="cf-all" onclick="setCustFilter('all')">전체</button>
+            <button class="f-btn" id="cf-debt" onclick="setCustFilter('debt')">미수금만</button>
+            <button class="f-btn" id="cf-paid" onclick="setCustFilter('paid')">완납</button>
+          </div>
+          <div style="display:flex;gap:5px;align-items:center;margin-left:auto;">
+            <input type="date" id="cFrom" onchange="renderCustomers()" style="height:36px;font-size:13px;width:128px;" />
+            <span style="color:var(--text3);font-size:13px;">~</span>
+            <input type="date" id="cTo" onchange="renderCustomers()" style="height:36px;font-size:13px;width:128px;" />
+          </div>
+        </div>
+        <div class="scroll-area">
+          <div id="custGrid" class="card-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 매출 탭 ══ -->
+  <div class="tab-page" id="tab-sales">
+    <div style="flex:1;overflow-y:auto;">
+      <div class="sum-grid" id="salesSumGrid" style="max-width:900px;margin:14px auto 0;grid-template-columns:repeat(4,1fr);"></div>
+      <div class="stats-grid" id="statsGrid" style="max-width:900px;margin:0 auto;"></div>
+    </div>
+  </div>
+
+  <!-- ══ 설정 탭 ══ -->
+  <div class="tab-page" id="tab-settings">
+    <div style="flex:1;overflow-y:auto;">
+      <div class="settings-wrap">
+        <!-- 품목 관리 -->
+        <div class="settings-section">
+          <div class="settings-head">
+            <span>📋 품목 관리</span>
+            <span style="font-size:12px;color:var(--text3)" id="itemCount"></span>
+          </div>
+          <div id="itemList"></div>
+          <div class="add-item-row">
+            <input id="newItemInput" type="text" placeholder="새 품목 이름 입력" />
+            <button class="btn-add-sm" onclick="addItem()">추가</button>
+          </div>
+        </div>
+        <!-- 매입처 관리 -->
+        <div class="settings-section">
+          <div class="settings-head">
+            <span>🏭 매입처 관리</span>
+          </div>
+          <div id="supplierList"></div>
+          <div class="add-item-row">
+            <input id="newSupplierInput" type="text" placeholder="새 매입처 이름 입력" />
+            <button class="btn-add-sm" onclick="addSupplier()">추가</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 수금 모달 -->
+<div class="overlay" id="payOv" style="display:none">
+  <div class="modal">
+    <div class="modal-head"><h2 id="payTitle">현금 수금</h2><button class="btn-x" onclick="closePayOv()">✕</button></div>
+    <div class="modal-body">
+      <p class="pay-desc" id="payDesc"></p>
+      <input class="pay-input" id="payAmt" type="number" inputmode="numeric" placeholder="0" />
+      <p class="pay-hint">일부만 받으셔도 됩니다</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-sec" onclick="closePayOv()">취소</button>
+      <button class="btn-primary green-btn" onclick="confirmPay()">✓ 수금 처리</button>
+    </div>
+  </div>
+</div>
+
+<!-- 날짜별 내역 모달 -->
+<div class="overlay" id="histOv" style="display:none">
+  <div class="modal">
+    <div class="modal-head"><h2 id="histTitle">날짜별 내역</h2><button class="btn-x" onclick="closeHistOv()">✕</button></div>
+    <div class="modal-body" id="histBody"></div>
+    <div class="modal-foot"><button class="btn-sec" onclick="closeHistOv()">닫기</button></div>
+  </div>
+</div>
+
+<!-- 고객 상세 모달 -->
+<div class="overlay" id="detailOv" style="display:none">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-head"><h2 id="detailTitle">고객 상세</h2><button class="btn-x" onclick="closeDetail()">✕</button></div>
+    <div class="modal-body">
+      <div id="detailInfo"></div>
+      <div class="detail-actions" id="detailActions"></div>
+      <hr class="divider" />
+      <div class="section-label">납품 내역</div>
+      <div id="detailTxns"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-sec" onclick="closeDetail()">닫기</button>
+      <button class="btn-primary green-btn" id="detailPayBtn" onclick="openPayFromDetail()">💵 현금 받기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 문자 모달 -->
+<div class="overlay" id="smsOv" style="display:none">
+  <div class="modal">
+    <div class="modal-head"><h2>문자 보내기</h2><button class="btn-x" onclick="closeSmsOv()">✕</button></div>
+    <div class="modal-body">
+      <p class="sms-to" id="smsTo"></p>
+      <div class="sms-preview" id="smsPreview"></div>
+      <p style="font-size:12px;color:var(--text3)">확인 후 '문자 앱 열기'를 눌러 보내주세요</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-sec" onclick="closeSmsOv()">취소</button>
+      <button class="btn-primary orange-btn" onclick="sendSms()">💬 문자 앱 열기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot, deleteDoc, collection, writeBatch }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCCubr0j7rUjZEJwxkpSNsWMLYH0bix1Dk",
+  authDomain: "jeju-85253524.firebaseapp.com",
+  projectId: "jeju-85253524",
+  storageBucket: "jeju-85253524.firebasestorage.app",
+  messagingSenderId: "918141185624",
+  appId: "1:918141185624:web:28de75dec8128afeef242d"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// ── 전역 상태 ──
+let CUSTOMERS = {};   // { 고객명: { phone, transactions:[{type,amount,item,qty,batch,memo,date}] } }
+let PURCHASES = {};   // { batchId: { supplier, date, item, qty, amount, memo } }
+let SETTINGS = { items: [], suppliers: [] };
+
+// 기본 품목
+const DEFAULT_ITEMS = ['사과','배','포도','복숭아','감귤','한라봉','딸기','수박','참외','멜론','블루베리','체리','자두','살구','키위'];
+
+// ── Firebase 리스너 ──
+onSnapshot(collection(db,'customers'), snap => {
+  CUSTOMERS={};snap.forEach(d=>{CUSTOMERS[d.id]=d.data();});
+  renderCustomers(); renderSales();
+});
+onSnapshot(collection(db,'purchases'), snap => {
+  PURCHASES={};snap.forEach(d=>{PURCHASES[d.id]=d.data();});
+  renderPurchases(); renderSales(); refreshBatchSelect();
+});
+onSnapshot(doc(db,'settings','main'), snap => {
+  if(snap.exists()){
+    SETTINGS=snap.data();
+    if(!SETTINGS.items) SETTINGS.items=DEFAULT_ITEMS;
+    if(!SETTINGS.suppliers) SETTINGS.suppliers=[];
+  } else {
+    SETTINGS={items:[...DEFAULT_ITEMS],suppliers:[]};
+    setDoc(doc(db,'settings','main'),SETTINGS);
+  }
+  refreshItemSelects(); renderSettingsItems(); renderSettingsSuppliers();
+  setSyncOk();
+  document.getElementById('loadingScreen').style.display='none';
+  document.getElementById('mainApp').style.display='flex';
+});
+
+function setSyncOk(){const el=document.getElementById('syncStatus');if(el){el.textContent='☁️ 저장됨';el.className='sync-status ok';}}
+function setSyncLoading(){const el=document.getElementById('syncStatus');if(el){el.textContent='저장 중...';el.className='sync-status loading';}}
+
+// ── 유틸 ──
+function fmt(n){return Number(n||0).toLocaleString('ko-KR')+'원';}
+function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function fmtDate(s){if(!s)return'';const[,m,d]=s.split('-');return m+'월 '+d+'일';}
+function fmtPhone(p){if(!p)return'';const d=p.replace(/\D/g,'');if(d.length===11)return d.replace(/(\d{3})(\d{4})(\d{4})/,'$1-$2-$3');if(d.length===10)return d.replace(/(\d{3})(\d{3})(\d{4})/,'$1-$2-$3');return p;}
+function getBal(txns){return(txns||[]).reduce((s,t)=>s+(t.type==='credit'?t.amount:-t.amount),0);}
+function batchLabel(b){if(!b)return'';return b.supplier+' '+b.date.replace(/-/g,'').slice(2);}
+function makeBatchId(supplier,date){return supplier.replace(/\s/g,'_')+'_'+date.replace(/-/g,'');}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2400);}
+
+// 오늘 날짜 초기화
+(function(){
+  const d=new Date();
+  const el=document.getElementById('todayLbl');
+  if(el) el.textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월 '+d.getDate()+'일';
+  document.getElementById('pDate').value=todayISO();
+})();
+
+// ── 탭 전환 ──
+window.switchTab=function(tab){
+  document.querySelectorAll('.tab-page').forEach(el=>el.classList.remove('on'));
+  document.querySelectorAll('.tab-btn').forEach(el=>el.classList.remove('on'));
+  document.getElementById('tab-'+tab).classList.add('on');
+  const idx={purchase:0,customer:1,sales:2,settings:3}[tab];
+  document.querySelectorAll('.tab-btn')[idx].classList.add('on');
+  if(tab==='sales') renderSales();
+};
+
+// ── 품목/매입처 셀렉트 갱신 ──
+function refreshItemSelects(){
+  ['pItem','cItem'].forEach(id=>{
+    const sel=document.getElementById(id);
+    if(!sel)return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="">-- 품목 선택 --</option>';
+    (SETTINGS.items||[]).forEach(it=>{
+      const op=document.createElement('option');
+      op.value=it; op.textContent=it;
+      sel.appendChild(op);
+    });
+    if(cur) sel.value=cur;
+  });
+}
+function refreshBatchSelect(){
+  const sel=document.getElementById('cBatch');
+  if(!sel)return;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">-- 배치 선택 (매입처+날짜) --</option>';
+  Object.entries(PURCHASES).sort((a,b)=>b[1].date.localeCompare(a[1].date)).forEach(([id,b])=>{
+    const op=document.createElement('option');
+    op.value=id; op.textContent=batchLabel(b)+' ('+b.item+' '+b.qty+'박스)';
+    sel.appendChild(op);
+  });
+  if(cur) sel.value=cur;
+}
+
+// ── 매입처 자동완성 ──
+let supAcIdx=-1;
+window.onSupplierAc=function(){
+  const q=document.getElementById('pSupplier').value.trim().toLowerCase();
+  const list=q?(SETTINGS.suppliers||[]).filter(s=>s.toLowerCase().includes(q)):(SETTINGS.suppliers||[]);
+  const el=document.getElementById('supplierAcList');
+  if(!list.length){el.style.display='none';return;}
+  el.innerHTML=list.map(s=>`<div class="ac-item" onmousedown="pickSupplier('${s}')">${s}</div>`).join('');
+  el.style.display='block'; supAcIdx=-1;
+};
+window.pickSupplier=function(s){document.getElementById('pSupplier').value=s;document.getElementById('supplierAcList').style.display='none';};
+window.hideSupplierAc=function(){setTimeout(()=>{document.getElementById('supplierAcList').style.display='none';},160);};
+window.onSupplierKey=function(e){
+  const items=document.querySelectorAll('#supplierAcList .ac-item');
+  if(e.key==='ArrowDown'){supAcIdx=Math.min(supAcIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('hi',i===supAcIdx));e.preventDefault();}
+  else if(e.key==='ArrowUp'){supAcIdx=Math.max(supAcIdx-1,0);items.forEach((el,i)=>el.classList.toggle('hi',i===supAcIdx));e.preventDefault();}
+  else if(e.key==='Enter'&&supAcIdx>=0&&items[supAcIdx]){window.pickSupplier(items[supAcIdx].textContent);e.preventDefault();}
+};
+
+// ── 고객 자동완성 ──
+let custAcIdx=-1;
+window.onCustAc=function(){
+  const q=document.getElementById('cName').value.trim().toLowerCase();
+  const names=Object.keys(CUSTOMERS);
+  const list=q?names.filter(n=>n.toLowerCase().includes(q)):names;
+  const el=document.getElementById('custAcList');
+  if(!list.length){el.style.display='none';return;}
+  el.innerHTML=list.map(n=>{
+    const ph=CUSTOMERS[n].phone?`<span class="ac-sub">${fmtPhone(CUSTOMERS[n].phone)}</span>`:'';
+    return `<div class="ac-item" onmousedown="pickCust('${n}')">${n}${ph}</div>`;
+  }).join('');
+  el.style.display='block'; custAcIdx=-1;
+};
+window.pickCust=function(name){
+  document.getElementById('cName').value=name;
+  if(CUSTOMERS[name]?.phone) document.getElementById('cPhone').value=fmtPhone(CUSTOMERS[name].phone);
+  document.getElementById('custAcList').style.display='none';
+  document.getElementById('cBatch').focus();
+};
+window.hideCustAc=function(){setTimeout(()=>{document.getElementById('custAcList').style.display='none';},160);};
+window.onCustKey=function(e){
+  const items=document.querySelectorAll('#custAcList .ac-item');
+  if(e.key==='ArrowDown'){custAcIdx=Math.min(custAcIdx+1,items.length-1);items.forEach((el,i)=>el.classList.toggle('hi',i===custAcIdx));e.preventDefault();}
+  else if(e.key==='ArrowUp'){custAcIdx=Math.max(custAcIdx-1,0);items.forEach((el,i)=>el.classList.toggle('hi',i===custAcIdx));e.preventDefault();}
+  else if(e.key==='Enter'&&custAcIdx>=0&&items[custAcIdx]){window.pickCust(items[custAcIdx].textContent.split('\n')[0].trim());e.preventDefault();}
+};
+
+// ── 매입 등록 ──
+window.addPurchase=async function(){
+  const supplier=document.getElementById('pSupplier').value.trim();
+  const date=document.getElementById('pDate').value;
+  const item=document.getElementById('pItem').value;
+  const qty=document.getElementById('pQty').value.trim();
+  const amt=document.getElementById('pAmt').value.trim();
+  const memo=document.getElementById('pMemo').value.trim();
+  if(!supplier){alert('매입처를 입력해 주세요.');return;}
+  if(!date){alert('입고일을 선택해 주세요.');return;}
+  if(!item){alert('품목을 선택해 주세요.');return;}
+  if(!qty||Number(qty)<=0){alert('수량을 입력해 주세요.');return;}
+  if(!amt||Number(amt)<=0){alert('매입 금액을 입력해 주세요.');return;}
+  const batchId=makeBatchId(supplier,date)+'_'+item;
+  const data={supplier,date,item,qty:parseInt(qty),amount:parseInt(amt),memo:memo||'',createdAt:todayISO()};
+  setSyncLoading();
+  await setDoc(doc(db,'purchases',batchId),data);
+  // 매입처 목록에 자동 추가
+  if(!(SETTINGS.suppliers||[]).includes(supplier)){
+    const newSettings={...SETTINGS,suppliers:[...(SETTINGS.suppliers||[]),supplier]};
+    await setDoc(doc(db,'settings','main'),newSettings);
+  }
+  document.getElementById('pQty').value='';
+  document.getElementById('pAmt').value='';
+  document.getElementById('pMemo').value='';
+  toast(batchLabel(data)+' 매입 등록 완료!');
+};
+
+// ── 납품(외상) 추가 ──
+window.addDelivery=async function(){
+  const name=document.getElementById('cName').value.trim();
+  const phone=document.getElementById('cPhone').value.trim();
+  const batchId=document.getElementById('cBatch').value;
+  const item=document.getElementById('cItem').value;
+  const qty=document.getElementById('cQty').value.trim();
+  const amt=document.getElementById('cAmt').value.trim();
+  const memo=document.getElementById('cMemo').value.trim();
+  if(!name){alert('고객명을 입력해 주세요.');return;}
+  if(!batchId){alert('매입 배치를 선택해 주세요.');return;}
+  if(!item){alert('품목을 선택해 주세요.');return;}
+  if(!qty||Number(qty)<=0){alert('수량을 입력해 주세요.');return;}
+  if(!amt||Number(amt)<=0){alert('납품 금액을 입력해 주세요.');return;}
+  const batch=PURCHASES[batchId];
+  const cust=CUSTOMERS[name]?{...CUSTOMERS[name]}:{phone:'',transactions:[]};
+  if(phone) cust.phone=phone.replace(/\D/g,'');
+  cust.transactions=[...(cust.transactions||[]),{
+    type:'credit',amount:parseInt(amt),item,qty:parseInt(qty),
+    batch:batchId,batchLabel:batchLabel(batch),memo:memo||'',date:todayISO()
+  }];
+  setSyncLoading();
+  await setDoc(doc(db,'customers',name),cust);
+  document.getElementById('cQty').value='';
+  document.getElementById('cAmt').value='';
+  document.getElementById('cMemo').value='';
+  toast(name+' 님 납품 추가 완료!');
+};
+
+// ── 수금 ──
+let payName=null;
+window.openPay=function(name){
+  payName=name;
+  const bal=getBal(CUSTOMERS[name].transactions);
+  document.getElementById('payTitle').textContent=name+' 님 수금';
+  document.getElementById('payDesc').textContent='현재 미수금: '+fmt(bal);
+  document.getElementById('payAmt').value=bal;
+  document.getElementById('payOv').style.display='flex';
+  setTimeout(()=>document.getElementById('payAmt').focus(),120);
+};
+window.closePayOv=function(){document.getElementById('payOv').style.display='none';payName=null;};
+window.confirmPay=async function(){
+  const amtR=document.getElementById('payAmt').value.trim();
+  if(!amtR||Number(amtR)<=0){alert('금액을 입력해 주세요.');return;}
+  const cust={...CUSTOMERS[payName]};
+  cust.transactions=[...(cust.transactions||[]),{type:'debit',amount:parseInt(amtR),item:'',qty:0,memo:'현금 수금',date:todayISO()}];
+  setSyncLoading();
+  await setDoc(doc(db,'customers',payName),cust);
+  toast(payName+' 님 '+fmt(parseInt(amtR))+' 수금 완료!');
+  window.closePayOv();
+  if(document.getElementById('detailOv').style.display!=='none') window.showDetail(payName);
+};
+
+// ── 고객 상세 ──
+let detailName=null;
+window.showDetail=function(name){
+  detailName=name;
+  const cust=CUSTOMERS[name];
+  const bal=getBal(cust.transactions);
+  const hasDebt=bal>0;
+  const phone=cust.phone?fmtPhone(cust.phone):null;
+  document.getElementById('detailTitle').textContent=name+' 님';
+  document.getElementById('detailInfo').innerHTML=`
+    <div class="detail-row"><span class="detail-label">미수금</span>
+      <span class="detail-val" style="color:${hasDebt?'var(--red)':'var(--green)'};font-size:19px;font-weight:700">${hasDebt?fmt(bal):'완납 ✅'}</span></div>
+    <div class="detail-row"><span class="detail-label">전화번호</span><span class="detail-val">${phone||'등록 안됨'}</span></div>`;
+  const callBtn=phone?`<a href="tel:${cust.phone}" class="btn-action call">📞 전화</a>`:`<span class="btn-action disabled-a">📞 전화</span>`;
+  const smsBtn=phone?`<button class="btn-action sms" onclick="openSms('${name}')">💬 문자</button>`:`<span class="btn-action disabled-a">💬 문자</span>`;
+  document.getElementById('detailActions').innerHTML=callBtn+smsBtn;
+  document.getElementById('detailPayBtn').style.display=hasDebt?'':'none';
+  const txns=[...(cust.transactions||[])].reverse();
+  document.getElementById('detailTxns').innerHTML=txns.map(t=>`
+    <div class="txn-row">
+      <span class="txn-date">${fmtDate(t.date)}</span>
+      ${t.item?`<span class="txn-item">${t.item}${t.qty?` ${t.qty}박스`:''}</span>`:''}
+      <span class="txn-memo">${t.batchLabel||t.memo||''}</span>
+      <span class="txn-amt ${t.type==='credit'?'plus':'minus'}">${t.type==='credit'?'+':'-'}${fmt(t.amount)}</span>
+    </div>`).join('');
+  document.getElementById('detailOv').style.display='flex';
+};
+window.closeDetail=function(){document.getElementById('detailOv').style.display='none';detailName=null;};
+window.openPayFromDetail=function(){window.closeDetail();window.openPay(detailName);};
+
+// ── SMS ──
+let smsPhone=null,smsText=null;
+window.openSms=function(name){
+  const cust=CUSTOMERS[name];
+  smsPhone=cust.phone;
+  const bal=getBal(cust.transactions);
+  smsText=`[현금장부] ${name} 님, 미수금 ${fmt(bal)}이 남아있습니다. 확인 부탁드립니다.`;
+  document.getElementById('smsTo').textContent='받는 사람: '+fmtPhone(smsPhone);
+  document.getElementById('smsPreview').textContent=smsText;
+  document.getElementById('smsOv').style.display='flex';
+};
+window.closeSmsOv=function(){document.getElementById('smsOv').style.display='none';};
+window.sendSms=function(){window.location.href=`sms:${smsPhone}?body=${encodeURIComponent(smsText)}`;window.closeSmsOv();};
+
+// ── 날짜별 내역 ──
+window.showHistory=function(nameFilter){
+  const all=[];
+  Object.entries(CUSTOMERS).forEach(([name,cust])=>(cust.transactions||[]).forEach(t=>all.push({...t,name})));
+  all.sort((a,b)=>b.date.localeCompare(a.date));
+  const txns=nameFilter?all.filter(t=>t.name===nameFilter):all;
+  const groups={};
+  txns.forEach(t=>{if(!groups[t.date])groups[t.date]=[];groups[t.date].push(t);});
+  const dates=Object.keys(groups).sort().reverse();
+  document.getElementById('histTitle').textContent=nameFilter?nameFilter+' 님 내역':'날짜별 전체 내역';
+  document.getElementById('histBody').innerHTML=dates.length?dates.map(date=>{
+    const dayAmt=groups[date].reduce((s,t)=>s+(t.type==='credit'?t.amount:-t.amount),0);
+    const rows=groups[date].map(t=>`<div class="day-txn">
+      ${!nameFilter?`<span class="day-name">${t.name}</span>`:''}
+      ${t.item?`<span class="txn-item">${t.item}</span>`:''}
+      <span class="day-memo">${t.batchLabel||t.memo||''}</span>
+      <span class="txn-amt ${t.type==='credit'?'plus':'minus'}">${t.type==='credit'?'+':'-'}${fmt(t.amount)}</span>
+    </div>`).join('');
+    return `<div class="day-group"><div class="day-label"><span>${fmtDate(date)}</span>
+      <span class="day-total ${dayAmt>=0?'plus':'minus'}">${dayAmt>0?'+':''}${fmt(dayAmt)}</span></div>${rows}</div>`;
+  }).join(''):'<div style="text-align:center;padding:40px;color:#9aa0a6">내역이 없습니다.</div>';
+  document.getElementById('histOv').style.display='flex';
+};
+window.closeHistOv=function(){document.getElementById('histOv').style.display='none';};
+
+// ── 삭제 ──
+window.delCust=async function(name){
+  if(!confirm(name+' 님의 모든 기록을 삭제할까요?'))return;
+  setSyncLoading();
+  await deleteDoc(doc(db,'customers',name));
+  toast(name+' 님 삭제 완료');
+};
+window.delPurchase=async function(id){
+  if(!confirm('이 매입 기록을 삭제할까요?'))return;
+  setSyncLoading();
+  await deleteDoc(doc(db,'purchases',id));
+  toast('매입 기록 삭제 완료');
+};
+
+// ── 필터 ──
+let custFilter='all';
+window.setCustFilter=function(f){
+  custFilter=f;
+  ['all','debt','paid'].forEach(k=>document.getElementById('cf-'+k).classList.toggle('on',k===f));
+  renderCustomers();
+};
+
+// ── 렌더: 매입 ──
+function renderPurchases(){
+  const pFrom=document.getElementById('pFrom').value;
+  const pTo=document.getElementById('pTo').value;
+  let total=0,totalQty=0;
+  const entries=Object.entries(PURCHASES).sort((a,b)=>b[1].date.localeCompare(a[1].date));
+  let filtered=entries;
+  if(pFrom) filtered=filtered.filter(([,b])=>b.date>=pFrom);
+  if(pTo) filtered=filtered.filter(([,b])=>b.date<=pTo);
+  filtered.forEach(([,b])=>{total+=b.amount;totalQty+=b.qty;});
+  document.getElementById('purchaseSumGrid').innerHTML=`
+    <div class="sum-card purple"><div class="sum-label">📦 총 매입액</div><div class="sum-value">${fmt(total)}</div></div>
+    <div class="sum-card blue"><div class="sum-label">📋 총 수량</div><div class="sum-value">${totalQty}박스</div></div>
+    <div class="sum-card gray"><div class="sum-label">🏭 매입 건수</div><div class="sum-value">${filtered.length}건</div></div>
+    <div class="sum-card gray"><div class="sum-label">🏭 매입처</div><div class="sum-value">${new Set(filtered.map(([,b])=>b.supplier)).size}곳</div></div>
+  `;
+  const grid=document.getElementById('purchaseGrid');
+  if(!filtered.length){grid.innerHTML='<div class="empty">매입 기록이 없습니다.<br>왼쪽에서 매입을 등록해 보세요.</div>';return;}
+  grid.innerHTML=filtered.map(([id,b])=>`
+    <div class="batch-card">
+      <div class="batch-title">${batchLabel(b)}</div>
+      <div class="batch-meta">🏭 ${b.supplier} &nbsp;|&nbsp; 📅 ${fmtDate(b.date)} &nbsp;|&nbsp; ${b.memo||''}</div>
+      <div class="batch-items">
+        <div class="batch-item-row">
+          <span class="batch-item-name">${b.item}</span>
+          <span class="batch-item-info">${b.qty}박스</span>
+          <span class="batch-item-amt">${fmt(b.amount)}</span>
+          <button class="btn-del" onclick="delPurchase('${id}')" style="width:34px;height:34px;font-size:14px;">🗑</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ── 렌더: 고객 ──
+function renderCustomers(){
+  const names=Object.keys(CUSTOMERS);
+  let totalDebt=0,debtCnt=0,totalSales=0;
+  names.forEach(n=>{
+    const b=getBal(CUSTOMERS[n].transactions);
+    if(b>0){totalDebt+=b;debtCnt++;}
+    totalSales+=(CUSTOMERS[n].transactions||[]).filter(t=>t.type==='credit').reduce((s,t)=>s+t.amount,0);
+  });
+  document.getElementById('custSumGrid').innerHTML=`
+    <div class="sum-card red"><div class="sum-label">💸 총 미수금</div><div class="sum-value">${fmt(totalDebt)}</div></div>
+    <div class="sum-card green"><div class="sum-label">✅ 미수 고객</div><div class="sum-value">${debtCnt}명</div></div>
+    <div class="sum-card blue"><div class="sum-label">💰 총 매출</div><div class="sum-value">${fmt(totalSales)}</div></div>
+    <div class="sum-card gray"><div class="sum-label">👥 전체 고객</div><div class="sum-value">${names.length}명</div></div>
+  `;
+  const dFrom=document.getElementById('cFrom').value;
+  const dTo=document.getElementById('cTo').value;
+  let list=names.filter(n=>{
+    const b=getBal(CUSTOMERS[n].transactions);
+    if(custFilter==='debt')return b>0;
+    if(custFilter==='paid')return b<=0;
+    return true;
+  }).sort((a,b)=>getBal(CUSTOMERS[b].transactions)-getBal(CUSTOMERS[a].transactions));
+  const grid=document.getElementById('custGrid');
+  if(!list.length){grid.innerHTML='<div class="empty">표시할 고객이 없습니다.</div>';return;}
+  grid.innerHTML=list.map(name=>{
+    const cust=CUSTOMERS[name];
+    const bal=getBal(cust.transactions);
+    const hasDebt=bal>0;
+    const phone=cust.phone?fmtPhone(cust.phone):null;
+    let txns=cust.transactions||[];
+    if(dFrom) txns=txns.filter(t=>t.date>=dFrom);
+    if(dTo) txns=txns.filter(t=>t.date<=dTo);
+    const rows=[...txns].reverse().slice(0,5).map(t=>`
+      <div class="txn-row">
+        <span class="txn-date">${fmtDate(t.date)}</span>
+        ${t.item?`<span class="txn-item">${t.item}${t.qty?` ${t.qty}박스`:''}</span>`:''}
+        <span class="txn-memo">${t.batchLabel||t.memo||''}</span>
+        <span class="txn-amt ${t.type==='credit'?'plus':'minus'}">${t.type==='credit'?'+':'-'}${fmt(t.amount)}</span>
+      </div>`).join('')||'<div style="text-align:center;padding:10px;color:#9aa0a6;font-size:12px">해당 기간 내역 없음</div>';
+    const callBtn=phone?`<a href="tel:${cust.phone}" class="btn-call" title="전화">📞</a>`:`<span class="btn-disabled-ic">📞</span>`;
+    const smsBtn=phone?`<button class="btn-sms" onclick="openSms('${name}')" title="문자">💬</button>`:`<span class="btn-disabled-ic">💬</span>`;
+    return `<div class="card ${hasDebt?'debt':'paid'}">
+      <div class="card-head">
+        <span class="card-title" onclick="showDetail('${name}')">${name}</span>
+        <span class="badge ${hasDebt?'red':'green'}">${hasDebt?fmt(bal):'완납'}</span>
+      </div>
+      ${phone?`<div class="card-sub">📱 ${phone}</div>`:''}
+      <div class="txn-list">${rows}</div>
+      <div class="card-btns">
+        <button class="btn-pay" ${!hasDebt?'disabled':''} onclick="openPay('${name}')">${hasDebt?'💵 현금 받기':'완납됨'}</button>
+        ${callBtn}${smsBtn}
+        <button class="btn-del" onclick="delCust('${name}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── 렌더: 매출 통계 ──
+function renderSales(){
+  // 전체 합계
+  let totalSales=0,totalPurchase=0,totalDebt=0,totalDelivery=0;
+  Object.values(CUSTOMERS).forEach(c=>{
+    (c.transactions||[]).forEach(t=>{
+      if(t.type==='credit'){totalSales+=t.amount;totalDelivery++;}
+      else totalDebt+=t.amount;
+    });
+  });
+  Object.values(PURCHASES).forEach(b=>totalPurchase+=b.amount);
+  const profit=totalSales-totalPurchase;
+  document.getElementById('salesSumGrid').innerHTML=`
+    <div class="sum-card blue"><div class="sum-label">💰 총 매출</div><div class="sum-value">${fmt(totalSales)}</div></div>
+    <div class="sum-card purple"><div class="sum-label">📦 총 매입</div><div class="sum-value">${fmt(totalPurchase)}</div></div>
+    <div class="sum-card ${profit>=0?'green':'red'}"><div class="sum-label">📈 수익</div><div class="sum-value">${fmt(profit)}</div></div>
+    <div class="sum-card red"><div class="sum-label">💸 미수금</div><div class="sum-value">${fmt(getBal(Object.values(CUSTOMERS).flatMap(c=>c.transactions||[])))}</div></div>
+  `;
+
+  // 품목별 매출
+  const itemSales={};
+  Object.values(CUSTOMERS).forEach(c=>(c.transactions||[]).filter(t=>t.type==='credit'&&t.item).forEach(t=>{
+    if(!itemSales[t.item])itemSales[t.item]={amt:0,qty:0};
+    itemSales[t.item].amt+=t.amount; itemSales[t.item].qty+=t.qty||0;
+  }));
+  const itemEntries=Object.entries(itemSales).sort((a,b)=>b[1].amt-a[1].amt);
+  const maxItem=itemEntries[0]?.[1]?.amt||1;
+
+  // 매입처별 매출
+  const supSales={};
+  Object.values(CUSTOMERS).forEach(c=>(c.transactions||[]).filter(t=>t.type==='credit'&&t.batchLabel).forEach(t=>{
+    const sup=t.batchLabel.split(' ')[0];
+    if(!supSales[sup])supSales[sup]=0;
+    supSales[sup]+=t.amount;
+  }));
+  const supEntries=Object.entries(supSales).sort((a,b)=>b[1]-a[1]);
+
+  // 고객별 매출
+  const custSales=Object.entries(CUSTOMERS).map(([name,c])=>({
+    name, amt:(c.transactions||[]).filter(t=>t.type==='credit').reduce((s,t)=>s+t.amount,0)
+  })).sort((a,b)=>b.amt-a.amt).slice(0,8);
+  const maxCust=custSales[0]?.amt||1;
+
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat-card">
+      <div class="stat-title">📋 품목별 매출</div>
+      ${itemEntries.length?itemEntries.map(([item,v])=>`
+        <div class="stat-row">
+          <div><div class="stat-name">${item}</div><div style="font-size:12px;color:var(--text3)">${v.qty}박스</div>
+            <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(v.amt/maxItem*100)}%"></div></div>
+          </div>
+          <div class="stat-val">${fmt(v.amt)}</div>
+        </div>`).join(''):'<div style="color:var(--text3);font-size:14px;padding:10px 0">데이터 없음</div>'}
+    </div>
+    <div class="stat-card">
+      <div class="stat-title">🏭 매입처별 납품 매출</div>
+      ${supEntries.length?supEntries.map(([sup,amt])=>`
+        <div class="stat-row">
+          <span class="stat-name">${sup}</span>
+          <span class="stat-val">${fmt(amt)}</span>
+        </div>`).join(''):'<div style="color:var(--text3);font-size:14px;padding:10px 0">데이터 없음</div>'}
+    </div>
+    <div class="stat-card">
+      <div class="stat-title">👥 고객별 매출 TOP 8</div>
+      ${custSales.length?custSales.map(({name,amt})=>`
+        <div class="stat-row">
+          <div><div class="stat-name">${name}</div>
+            <div class="stat-bar-wrap"><div class="stat-bar" style="width:${Math.round(amt/maxCust*100)}%;background:var(--green)"></div></div>
+          </div>
+          <div class="stat-val" style="color:var(--green)">${fmt(amt)}</div>
+        </div>`).join(''):'<div style="color:var(--text3);font-size:14px;padding:10px 0">데이터 없음</div>'}
+    </div>
+  `;
+}
+
+// ── 설정: 품목 ──
+function renderSettingsItems(){
+  const items=SETTINGS.items||[];
+  document.getElementById('itemCount').textContent=items.length+'개';
+  document.getElementById('itemList').innerHTML=items.map((it,i)=>`
+    <div class="settings-item">
+      <span class="settings-item-name">${it}</span>
+      <button class="btn-sm red" onclick="delItem(${i})">삭제</button>
+    </div>`).join('');
+}
+window.addItem=async function(){
+  const val=document.getElementById('newItemInput').value.trim();
+  if(!val){alert('품목 이름을 입력해 주세요.');return;}
+  if((SETTINGS.items||[]).includes(val)){alert('이미 있는 품목입니다.');return;}
+  const newSettings={...SETTINGS,items:[...(SETTINGS.items||[]),val]};
+  await setDoc(doc(db,'settings','main'),newSettings);
+  document.getElementById('newItemInput').value='';
+  toast(val+' 품목 추가 완료!');
+};
+window.delItem=async function(idx){
+  if(!confirm((SETTINGS.items[idx])+' 품목을 삭제할까요?'))return;
+  const newItems=[...SETTINGS.items];
+  newItems.splice(idx,1);
+  await setDoc(doc(db,'settings','main'),{...SETTINGS,items:newItems});
+};
+
+// ── 설정: 매입처 ──
+function renderSettingsSuppliers(){
+  const sups=SETTINGS.suppliers||[];
+  document.getElementById('supplierList').innerHTML=sups.map((s,i)=>`
+    <div class="settings-item">
+      <span class="settings-item-name">${s}</span>
+      <button class="btn-sm red" onclick="delSupplier(${i})">삭제</button>
+    </div>`).join('');
+}
+window.addSupplier=async function(){
+  const val=document.getElementById('newSupplierInput').value.trim();
+  if(!val){alert('매입처 이름을 입력해 주세요.');return;}
+  if((SETTINGS.suppliers||[]).includes(val)){alert('이미 있는 매입처입니다.');return;}
+  const newSettings={...SETTINGS,suppliers:[...(SETTINGS.suppliers||[]),val]};
+  await setDoc(doc(db,'settings','main'),newSettings);
+  document.getElementById('newSupplierInput').value='';
+  toast(val+' 매입처 추가 완료!');
+};
+window.delSupplier=async function(idx){
+  if(!confirm((SETTINGS.suppliers[idx])+' 매입처를 삭제할까요?'))return;
+  const newSups=[...SETTINGS.suppliers];
+  newSups.splice(idx,1);
+  await setDoc(doc(db,'settings','main'),{...SETTINGS,suppliers:newSups});
+};
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
